@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import subprocess
 import platform
 import os
@@ -9,6 +8,7 @@ import hashlib
 import json
 import shutil
 import sys
+from typing import Self
 
 BUILD_CONFIG = "build.json"
 CMAKE = "CMakeLists.txt"
@@ -17,7 +17,7 @@ CMAKE_CACHE = "CMakeCache.txt"
 SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
 class Project():
-    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: bool = True) -> None:
+    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: Self | None = None) -> None:
         self.root = root # defines root/main project
         self.cmake_path: str = os.path.join(dir, CMAKE)
         self.name: str = name or get_project_name(self.cmake_path)
@@ -73,18 +73,20 @@ class Project():
         """Sets OS specific variables (build related)"""
         if platform.system() == "Windows":
             self.info_msg = "Generating Windows build files ..."
-            self.build_dir = os.path.join(self.dir, "build\\windows\\")
             if self.root:
-                self.executables_dir = os.path.join(self.build_dir, "Debug\\")
-            else:
+                self.build_dir = os.path.join(self.root.dir, "build\\windows\\")
                 self.executables_dir = os.path.join(self.build_dir, "Debug", os.path.relpath(self.dir) if self.dir != "." else "")
+            else:
+                self.build_dir = os.path.join(self.dir, "build\\windows\\")
+                self.executables_dir = os.path.join(self.build_dir, "Debug\\")
         elif platform.system() == "Linux":
             self.info_msg = "Generating Linux build files ..."
-            self.build_dir = os.path.join(self.dir, "build/linux/")
             if self.root:
-                self.executables_dir = os.path.join(self.build_dir)
-            else:
+                self.build_dir = os.path.join(self.root.dir, "build/linux/")
                 self.executables_dir = os.path.join(self.build_dir, os.path.relpath(self.dir) if self.dir != "." else "")
+            else:
+                self.build_dir = os.path.join(self.dir, "build/linux/")
+                self.executables_dir = os.path.join(self.build_dir)
         else:
             print("[ERROR]: Unsupported platform.")
             quit(1)
@@ -120,7 +122,10 @@ class Project():
             if project_match:
                 project_name = project_match.group(1)
                 if project_name != self.name:
-                    subprojects[project_name] = Project(project_name, dir=os.path.dirname(file_path), root=False)
+                    if self.root:
+                        subprojects[project_name] = Project(project_name, dir=os.path.dirname(file_path), root=self.root)
+                    else:
+                        subprojects[project_name] = Project(project_name, dir=os.path.dirname(file_path), root=self)
 
             # Search for subdirectory definitions to search for defined projects there as well
             subdirectory_pattern = re.compile(r"\s*add_subdirectory\s*\(\s*(.+)\s*\)\s*")
