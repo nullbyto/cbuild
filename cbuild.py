@@ -53,7 +53,7 @@ class Project():
                 print("[ERROR]: The specificed executable is not defined in CMakeLists.txt")
                 quit(1)
         
-        self.set_run_path()
+        self.run_path = self.executables_paths[self.executable]
 
     def display_project_info(self) -> None:
         """Print out relevant project information"""
