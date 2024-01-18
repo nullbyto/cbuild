@@ -13,6 +13,7 @@ import sys
 CONFIG_FILE = "build.json"
 CMAKE_PATH = "CMakeLists.txt"
 
+SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
 class Project():
     CMAKE = "CMakeLists.txt"
@@ -31,7 +32,6 @@ class Project():
         self.executable: str
 
         self.set_os_specific()
-        self.set_exec_ext()
 
         # Assign executable path for each executable (and for each sub project)
         exec_paths: dict = {exec: os.path.join(self.executables_dir, exec) for exec in self.executables}
@@ -52,7 +52,8 @@ class Project():
             else:
                 print("[ERROR]: The specificed executable is not defined in CMakeLists.txt")
                 quit(1)
-        
+
+        self.set_exec_ext()
         self.run_path = self.executables_paths[self.executable]
 
     def display_project_info(self) -> None:
@@ -60,7 +61,7 @@ class Project():
         print(beautiy("Project information"))
         print("Name: ", self.name)
         print("Build directory: ", self.build_dir)
-        print("Executable directory: ", self.executables_dir)
+        print("Executables directory: ", self.executables_dir)
         print("Run path: ", self.run_path)
         print("Executables: ", self.executables)
         if self.subprojects:
@@ -85,8 +86,9 @@ class Project():
     def set_exec_ext(self) -> None:
         """Sets executable extension depending on the OS"""
         if platform.system() == "Windows":
-            for idx, exec in enumerate(self.executables):
-                self.executables[idx] = f"{exec}.exe"
+            for exec in self.executables_paths:
+                path = self.executables_paths[exec]
+                self.executables_paths[exec] = f"{path}.exe"
 
     def set_run_path(self) -> None:
         """Sets run path for the project (OS specific)"""
@@ -326,6 +328,7 @@ def main():
     parser.add_argument("-cm", "--cmake-options", dest="cmake_options", help="pass cmake options with -cm=\"\"", nargs=1)
     parser.add_argument("-p", "--project", action="store_true", help="display project info")
     parser.add_argument("-i", "--ignore", action="store_true", help="ignore changes in CMakeLists.txt (useful in big projects)")
+    parser.add_argument("--source", help="path to file to source before building/running (linux only)", nargs="?", default="", const="")
 
     args, other_args = parser.parse_known_args()
 
@@ -388,16 +391,25 @@ def main():
 
     cache_file = os.path.join(project.build_dir, "CMakeCache.txt")
 
+    if args.source:
+        # Return if --source was executed on windows
+        if platform.system() == "Windows":
+            print("[ERROR]: Sourcing (--source) a file is currently not supported on Windows.")
+            return 1
+        source_cmd = SOURCE_FORMAT
+    else:
+        source_cmd = "{}{}"
+
     proc = None
     # If the CMakeCache.txt doesn't exist or it was modified then generate cache
     if not os.path.exists(cache_file) or modified:
         print(beautiy(f"Configuring project: {project_name} ..."))
         print(beautiy(project.info_msg))
         print(beautiy("Generating CMake cache ..."))
-        subprocess.run(["cmake", ".", "-B", project.build_dir] + cmake_options, shell=True)
+        subprocess.run(source_cmd.format(args.source, " ".join(["cmake", ".", "-B", project.build_dir] + cmake_options)), shell=True)
 
     print(beautiy(f"Building project: {project_name} ..."))
-    proc = subprocess.run(["cmake", "--build", project.build_dir], shell=True)
+    proc = subprocess.run(source_cmd.format(args.source, " ".join(["cmake", "--build", project.build_dir])), shell=True)
     if proc.returncode != 0:
         print(beautiy("Build process failed!"))
         # If there was an error and -f switch wasn't given, quit
@@ -414,9 +426,9 @@ def main():
 
         raw_other_args = get_quoted_string(other_args)
         if args.executable == "default":
-            subprocess.run([project.run_path, raw_other_args], shell=True)
+            subprocess.run(source_cmd.format(args.source, " ".join([project.run_path, raw_other_args])), shell=True)
         else:
-            subprocess.run([project.executables_paths[args.executable], raw_other_args], shell=True)
+            subprocess.run(source_cmd.format(args.source, " ".join([project.executables_paths[args.executable], raw_other_args])), shell=True)
     
     return 0
 
