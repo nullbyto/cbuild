@@ -10,16 +10,16 @@ import json
 import shutil
 import sys
 
-CONFIG_FILE = "build.json"
-CMAKE_PATH = "CMakeLists.txt"
+BUILD_CONFIG = "build.json"
+CMAKE = "CMakeLists.txt"
+CMAKE_CACHE = "CMakeCache.txt"
 
 SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
 class Project():
-    CMAKE = "CMakeLists.txt"
-
-    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".") -> None:
-        self.cmake_path: str = os.path.join(dir, self.CMAKE)
+    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: bool = True) -> None:
+        self.root = root # defines root/main project
+        self.cmake_path: str = os.path.join(dir, CMAKE)
         self.name: str = name or get_project_name(self.cmake_path)
         self.dir: str = dir
         self.executables: list[str] = self.get_executable_names(self.cmake_path)
@@ -73,12 +73,18 @@ class Project():
         """Sets OS specific variables (build related)"""
         if platform.system() == "Windows":
             self.info_msg = "Generating Windows build files ..."
-            self.build_dir = ".\\build\\windows\\"
-            self.executables_dir = os.path.join(self.build_dir, "Debug", os.path.relpath(self.dir) if self.dir != "." else "")
+            self.build_dir = os.path.join(self.dir, "build\\windows\\")
+            if self.root:
+                self.executables_dir = os.path.join(self.build_dir, "Debug\\")
+            else:
+                self.executables_dir = os.path.join(self.build_dir, "Debug", os.path.relpath(self.dir) if self.dir != "." else "")
         elif platform.system() == "Linux":
             self.info_msg = "Generating Linux build files ..."
-            self.build_dir = "./build/linux/"
-            self.executables_dir = os.path.join(self.build_dir, os.path.relpath(self.dir) if self.dir != "." else "")
+            self.build_dir = os.path.join(self.dir, "build/linux/")
+            if self.root:
+                self.executables_dir = os.path.join(self.build_dir)
+            else:
+                self.executables_dir = os.path.join(self.build_dir, os.path.relpath(self.dir) if self.dir != "." else "")
         else:
             print("[ERROR]: Unsupported platform.")
             quit(1)
@@ -114,7 +120,7 @@ class Project():
             if project_match:
                 project_name = project_match.group(1)
                 if project_name != self.name:
-                    subprojects[project_name] = Project(project_name, dir=os.path.dirname(file_path))
+                    subprojects[project_name] = Project(project_name, dir=os.path.dirname(file_path), root=False)
 
             # Search for subdirectory definitions to search for defined projects there as well
             subdirectory_pattern = re.compile(r"\s*add_subdirectory\s*\(\s*(.+)\s*\)\s*")
@@ -122,7 +128,7 @@ class Project():
             if subdirectory_match:
                 subdirectory = subdirectory_match.group(1)
 
-                new_path = os.path.join(os.path.dirname(file_path), subdirectory, self.CMAKE)
+                new_path = os.path.join(os.path.dirname(file_path), subdirectory, CMAKE)
 
                 # Recursive call of the function
                 subprojects.update(self.get_subprojects(new_path))
@@ -155,7 +161,7 @@ class Project():
             if subdirectory_match:
                 subdirectory = subdirectory_match.group(1)
 
-                new_path = os.path.join(os.path.dirname(file_path), subdirectory, self.CMAKE)
+                new_path = os.path.join(os.path.dirname(file_path), subdirectory, CMAKE)
 
                 # Recursive call of the function
                 executables.extend(self.get_executable_names(new_path))
@@ -183,12 +189,12 @@ def read_build_conf(file_path: str) -> dict:
     
     return config
 
-def update_build_conf() -> None:
+def update_build_conf(file_path: str) -> None:
     """Updates build config with the current file hash of CMakeLists.txt"""
     config = {
-        "cmakelists_hash": get_file_hash(CMAKE_PATH)
+        "cmakelists_hash": get_file_hash(file_path)
     }
-    with open(CONFIG_FILE, "w", encoding="utf-8") as file:
+    with open(BUILD_CONFIG, "w", encoding="utf-8") as file:
         json.dump(config, file)
 
 def file_changed_in_git(file_name: str) -> bool:
@@ -227,13 +233,13 @@ def get_project_name(file_path: str) -> str:
     else:
         raise Exception("Could not find the project name in CMakeLists.txt")
 
-def check_cmakelists_exists() -> bool:
+def check_cmakelists_exists(file_path: str) -> bool:
     """Return True if CMakeLists.txt exists, otherwise False"""
-    return os.path.exists(CMAKE_PATH)
+    return os.path.exists(file_path)
 
 def check_cache_exists() -> bool:
     """Return True if CMakeCache.txt exists, otherwise False"""
-    return os.path.exists("CMakeCache.txt")
+    return os.path.exists(CMAKE_CACHE)
 
 def beautiy(s: str) -> str:
     """Return decoration around a string"""
@@ -321,7 +327,7 @@ def get_quoted_string(strings: str | list[str], all=False) -> str:
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="CMake building tool")
-    parser.add_argument("--path", help="path to project to build", nargs="?", default=".")
+    parser.add_argument("--path", help="path to project to build", nargs="?", default=".", const=".")
     parser.add_argument("-r", "--run", dest="executable", help="run the project, or provided executable name", nargs="?", default=None, const="default")
     parser.add_argument("-f", "--force", action="store_true", help="force run old binary if build failed")
     parser.add_argument("-d", "--delete", action="store_true", help="delete build directory before building")
@@ -332,8 +338,11 @@ def main():
 
     args, other_args = parser.parse_known_args()
 
+    cmake_path = os.path.join(args.path, CMAKE)
+    build_conf_path = os.path.join(args.path, BUILD_CONFIG)
+
     # Quit if CMakeLists.txt is missing
-    if not check_cmakelists_exists():
+    if not check_cmakelists_exists(cmake_path):
         print("[ERROR]: CMakeLists.txt is missing!")
         print("Please make sure your project is defined in it, before you run this script!")
         return 1
@@ -368,28 +377,28 @@ def main():
 
     # Create build config file to store file hash
     # in order to check if it has been modified
-    if not os.path.exists(CONFIG_FILE):
-        print(beautiy(f"Creating {CONFIG_FILE} file..."))
-        update_build_conf()
+    if not os.path.exists(build_conf_path):
+        print(beautiy(f"Creating {build_conf_path} file..."))
+        update_build_conf(build_conf_path)
 
     # Ignore changes in CMakeLists.txt
     if not args.ignore:
-        build_conf = read_build_conf(CONFIG_FILE)
-        if build_conf["cmakelists_hash"] != get_file_hash(CMAKE_PATH):
+        build_conf = read_build_conf(build_conf_path)
+        if build_conf["cmakelists_hash"] != get_file_hash(cmake_path):
             print(beautiy("CMakeLists.txt was changed!"))
-            print(beautiy(f"Saving new file hash to {CONFIG_FILE}"))
+            print(beautiy(f"Saving new file hash to {build_conf_path}"))
             modified = True
-            update_build_conf()
+            update_build_conf(build_conf_path)
 
     # Get the project name defined from CMakelists.txt
-    project_name = get_project_name(CMAKE_PATH)
+    project_name = get_project_name(cmake_path)
 
     # Delete build directory if switch -d was given
     if os.path.exists(project.build_dir) and args.delete:
         print(beautiy(f"Deleting {project.build_dir}"))
         shutil.rmtree(project.build_dir, onerror=rmtree_error_handler)
 
-    cache_file = os.path.join(project.build_dir, "CMakeCache.txt")
+    cache_file = os.path.join(project.build_dir, CMAKE_CACHE)
 
     if args.source:
         # Return if --source was executed on windows
@@ -406,7 +415,7 @@ def main():
         print(beautiy(f"Configuring project: {project_name} ..."))
         print(beautiy(project.info_msg))
         print(beautiy("Generating CMake cache ..."))
-        subprocess.run(source_cmd.format(args.source, " ".join(["cmake", ".", "-B", project.build_dir] + cmake_options)), shell=True)
+        subprocess.run(source_cmd.format(args.source, " ".join(["cmake", args.path, "-B", project.build_dir] + cmake_options)), shell=True)
 
     print(beautiy(f"Building project: {project_name} ..."))
     proc = subprocess.run(source_cmd.format(args.source, " ".join(["cmake", "--build", project.build_dir])), shell=True)
