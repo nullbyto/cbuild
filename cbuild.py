@@ -50,7 +50,7 @@ class Project():
             if executable in self.executables:
                 self.executable = executable
             else:
-                print("[ERROR]: The specificed executable is not defined in CMakeLists.txt")
+                print("[ERROR]: The specificed executable is not defined in CMakeLists.txt", file=sys.stderr)
                 quit(1)
 
         self.set_exec_ext()
@@ -88,7 +88,7 @@ class Project():
                 self.build_dir = os.path.join(self.dir, "build/linux/")
                 self.executables_dir = os.path.join(self.build_dir)
         else:
-            print("[ERROR]: Unsupported platform.")
+            print("[ERROR]: Unsupported platform.", file=sys.stderr)
             quit(1)
 
     def set_exec_ext(self) -> None:
@@ -105,7 +105,7 @@ class Project():
         elif platform.system() == "Linux":
             self.run_path = os.path.join(self.build_dir, os.path.dirname(self.dir), self.executable)
         else:
-            print("[ERROR]: Unsupported platform.")
+            print("[ERROR]: Unsupported platform.", file=sys.stderr)
             quit(1)
     
     def get_subprojects(self, file_path: str) -> dict:
@@ -348,13 +348,13 @@ def main():
 
     # Quit if CMakeLists.txt is missing
     if not check_cmakelists_exists(cmake_path):
-        print("[ERROR]: CMakeLists.txt is missing!")
-        print("Please make sure your project is defined in it, before you run this script!")
+        print("[ERROR]: CMakeLists.txt is missing!", file=sys.stderr)
+        print("Please make sure your project is defined in it, before you run this script!", file=sys.stderr)
         return 1
     
     # Quit if the CMake tool is not installed
     if not check_cmake_exists():
-        print("[ERROR]: CMake is not installed or not in the PATH.")
+        print("[ERROR]: CMake is not installed or not in the PATH.", file=sys.stderr)
         return 1
 
     # Create Project object with specified executable --run argument, otherwise project name is used
@@ -408,7 +408,7 @@ def main():
     if args.source:
         # Return if --source was executed on windows
         if platform.system() == "Windows":
-            print("[ERROR]: Sourcing (--source) a file is currently not supported on Windows.")
+            print("[ERROR]: Sourcing (--source) a file is currently not supported on Windows.", file=sys.stderr)
             return 1
         source_cmd = SOURCE_FORMAT
     else:
@@ -425,10 +425,10 @@ def main():
     print(beautiy(f"Building project: {project_name} ..."))
     proc = subprocess.run(source_cmd.format(args.source, " ".join(["cmake", "--build", project.build_dir])), shell=True)
     if proc.returncode != 0:
-        print(beautiy("Build process failed!"))
+        print(beautiy("Build process failed!"), file=sys.stderr)
         # If there was an error and -f switch wasn't given, quit
         if not args.force:
-            return 1
+            return proc.returncode
 
     # Run project if switch was given
     if args.executable:
@@ -440,9 +440,11 @@ def main():
 
         raw_other_args = get_quoted_string(other_args)
         if args.executable == "default":
-            subprocess.run(source_cmd.format(args.source, " ".join([project.run_path, raw_other_args])), shell=True)
+            proc = subprocess.run(source_cmd.format(args.source, " ".join([project.run_path, raw_other_args])), shell=True)
         else:
-            subprocess.run(source_cmd.format(args.source, " ".join([project.executables_paths[args.executable], raw_other_args])), shell=True)
+            proc = subprocess.run(source_cmd.format(args.source, " ".join([project.executables_paths[args.executable], raw_other_args])), shell=True)
+        
+        return proc.returncode
     
     return 0
 
