@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import subprocess
 import platform
 import os
@@ -8,7 +9,6 @@ import hashlib
 import json
 import shutil
 import sys
-from typing import Self
 
 BUILD_CONFIG = "build.json"
 CMAKE = "CMakeLists.txt"
@@ -17,7 +17,7 @@ CMAKE_CACHE = "CMakeCache.txt"
 SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
 class Project():
-    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: Self | None = None) -> None:
+    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: "Project" = None) -> None:
         self.root = root # defines root/main project
         self.cmake_path: str = os.path.join(dir, CMAKE)
         self.name: str = name or get_project_name(self.cmake_path)
