@@ -194,12 +194,12 @@ def read_build_conf(file_path: str) -> dict:
     
     return config
 
-def update_build_conf(file_path: str) -> None:
+def update_build_conf(file_path: str, cmake_path: str) -> None:
     """Updates build config with the current file hash of CMakeLists.txt"""
     config = {
-        "cmakelists_hash": get_file_hash(file_path)
+        "cmakelists_hash": get_file_hash(cmake_path)
     }
-    with open(BUILD_CONFIG, "w", encoding="utf-8") as file:
+    with open(file_path, "w", encoding="utf-8") as file:
         json.dump(config, file)
 
 def file_changed_in_git(file_name: str) -> bool:
@@ -384,16 +384,21 @@ def main():
     # in order to check if it has been modified
     if not os.path.exists(build_conf_path):
         print(beautiy(f"Creating {build_conf_path} file..."))
-        update_build_conf(build_conf_path)
+        with open(build_conf_path, "w") as f:
+            json.dump({}, f)
+        update_build_conf(build_conf_path, cmake_path)
 
     # Ignore changes in CMakeLists.txt
     if not args.ignore:
         build_conf = read_build_conf(build_conf_path)
-        if build_conf["cmakelists_hash"] != get_file_hash(cmake_path):
-            print(beautiy("CMakeLists.txt was changed!"))
-            print(beautiy(f"Saving new file hash to {build_conf_path}"))
-            modified = True
-            update_build_conf(build_conf_path)
+        if "cmakelists_hash" in build_conf:
+            if build_conf["cmakelists_hash"] != get_file_hash(cmake_path):
+                print(beautiy("CMakeLists.txt was changed!"))
+                print(beautiy(f"Saving new file hash to {build_conf_path}"))
+                modified = True
+                update_build_conf(build_conf_path, cmake_path)
+        else:
+            update_build_conf(build_conf_path, cmake_path)
 
     # Get the project name defined from CMakelists.txt
     project_name = get_project_name(cmake_path)
