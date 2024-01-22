@@ -437,7 +437,7 @@ def main():
             return proc.returncode
     
     if proc.returncode == 0 and args.binary_dir:
-        print(beautiy(f"Copying executables to {args.binary_dir} ..."))
+        print(beautiy(f"Copying executables to: {args.binary_dir} ..."))
         for exec_path in project.executables_paths.values():
             binary_path = args.binary_dir
 
