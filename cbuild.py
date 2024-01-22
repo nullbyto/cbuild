@@ -437,10 +437,18 @@ def main():
             return proc.returncode
     
     if proc.returncode == 0 and args.binary_dir:
+        print(beautiy(f"Copying executables to {args.binary_dir} ..."))
         for exec_path in project.executables_paths.values():
             binary_path = args.binary_dir
+
+            # Create directories if needed
             os.makedirs(binary_path, exist_ok=True)
-            shutil.copyfile(exec_path, os.path.join(binary_path, os.path.basename(exec_path)))
+            dst = os.path.join(binary_path, os.path.basename(exec_path))
+            shutil.copyfile(exec_path, dst)
+
+            # Get original permissions of the file to write that to the copy
+            orig_perms = os.stat(exec_path).st_mode
+            os.chmod(dst, orig_perms)
 
     # Run project if switch was given
     if args.executable:
