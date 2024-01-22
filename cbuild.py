@@ -340,6 +340,7 @@ def main():
     parser.add_argument("-p", "--project", action="store_true", help="display project info")
     parser.add_argument("-i", "--ignore", action="store_true", help="ignore changes in CMakeLists.txt (useful in big projects)")
     parser.add_argument("--source", help="path to file to source before building/running (linux only)", nargs="?", default="", const="")
+    parser.add_argument("-b", "--binary-dir", help="path to the folder to copy the executables (binaries) to", nargs="?", default=None)
 
     args, other_args = parser.parse_known_args()
 
@@ -434,6 +435,12 @@ def main():
         # If there was an error and -f switch wasn't given, quit
         if not args.force:
             return proc.returncode
+    
+    if proc.returncode == 0 and args.binary_dir:
+        for exec_path in project.executables_paths.values():
+            binary_path = args.binary_dir
+            os.makedirs(binary_path, exist_ok=True)
+            shutil.copyfile(exec_path, os.path.join(binary_path, os.path.basename(exec_path)))
 
     # Run project if switch was given
     if args.executable:
