@@ -16,8 +16,15 @@ CMAKE_CACHE = "CMakeCache.txt"
 
 SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
+
 class Project():
-    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: "Project" = None, binary_dir: str = None) -> None:
+    def __init__(
+            self, name: str | None = None,
+            executable: str | None = None,
+            dir: str = ".",
+            root: "Project | None" = None,
+            binary_dir: str | None = None
+    ) -> None:
         self.root = root # defines root/main project
         self.cmake_path: str = os.path.join(dir, CMAKE)
         self.name: str = name or get_project_name(self.cmake_path)
@@ -30,7 +37,7 @@ class Project():
         self.run_path: str
         self.info_msg: str
         self.executable: str
-        self.binary_dir: str = binary_dir
+        self.binary_dir: str | None = binary_dir
 
         self.set_os_specific()
 
@@ -336,15 +343,28 @@ def get_quoted_string(strings: str | list[str], all=False) -> str:
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description="CMake building tool")
-    parser.add_argument("--path", help="path to project to build", nargs="?", default=".", const=".")
-    parser.add_argument("-r", "--run", dest="executable", help="run the project, or provided executable name", nargs="?", default=None, const="default")
-    parser.add_argument("-f", "--force", action="store_true", help="force run old binary if build failed")
-    parser.add_argument("-d", "--delete", action="store_true", help="delete build directory before building")
-    parser.add_argument("-cm", "--cmake-options", dest="cmake_options", help="pass cmake options with -cm=\"\"", nargs=1)
-    parser.add_argument("-p", "--project", action="store_true", help="display project info")
-    parser.add_argument("-i", "--ignore", action="store_true", help="ignore changes in CMakeLists.txt (useful in big projects)")
-    parser.add_argument("--source", help="path to file to source before building/running (linux only)", nargs="?", default="", const="")
-    parser.add_argument("-b", "--binary-dir", help="path to the folder to copy the executables (binaries) to", nargs="?", default=None)
+    parser.add_argument("--path",
+                        help="path to project to build",
+                        nargs="?", default=".", const=".")
+    parser.add_argument("-r", "--run", dest="executable",
+                        help="run the project, or provided executable name",
+                        nargs="?", default=None, const="default")
+    parser.add_argument("-f", "--force", action="store_true",
+                        help="force run old binary if build failed")
+    parser.add_argument("-d", "--delete", action="store_true",
+                        help="delete build directory before building")
+    parser.add_argument("-cm", "--cmake-options", dest="cmake_options",
+                        help="pass cmake options with -cm=\"\"", nargs=1)
+    parser.add_argument("-p", "--project", action="store_true",
+                        help="display project info")
+    parser.add_argument("-i", "--ignore", action="store_true",
+                        help="ignore changes in CMakeLists.txt (useful in big projects)")
+    parser.add_argument("--source",
+                        help="path to file to source before building/running (linux only)",
+                        nargs="?", default="", const="")
+    parser.add_argument("-b", "--binary-dir",
+                        help="path to the folder to copy the executables (binaries) to",
+                        nargs="?", default=None)
 
     args, other_args = parser.parse_known_args()
 
@@ -430,10 +450,12 @@ def main():
         print(beautiy(f"Configuring project: {project_name} ..."))
         print(beautiy(project.info_msg))
         print(beautiy("Generating CMake cache ..."))
-        subprocess.run(source_cmd.format(args.source, " ".join(["cmake", args.path, "-B", project.build_dir] + cmake_options)), shell=True)
+        subprocess.run(source_cmd.format(args.source, " ".join(
+            ["cmake", args.path, "-B", project.build_dir] + cmake_options)), shell=True)
 
     print(beautiy(f"Building project: {project_name} ..."))
-    proc = subprocess.run(source_cmd.format(args.source, " ".join(["cmake", "--build", project.build_dir])), shell=True)
+    proc = subprocess.run(source_cmd.format(args.source, " ".join(
+        ["cmake", "--build", project.build_dir])), shell=True)
     if proc.returncode != 0:
         print(beautiy("Build process failed!"), file=sys.stderr)
         # If there was an error and -f switch wasn't given, quit
@@ -464,12 +486,14 @@ def main():
 
         raw_other_args = get_quoted_string(other_args)
         if args.executable == "default":
-            proc = subprocess.run(source_cmd.format(args.source, " ".join([project.run_path, raw_other_args])), shell=True)
+            proc = subprocess.run(source_cmd.format(args.source, " ".join(
+                [project.run_path, raw_other_args])), shell=True)
         else:
-            proc = subprocess.run(source_cmd.format(args.source, " ".join([project.executables_paths[args.executable], raw_other_args])), shell=True)
-        
+            proc = subprocess.run(source_cmd.format(args.source, " ".join(
+                [project.executables_paths[args.executable], raw_other_args])), shell=True)
+
         return proc.returncode
-    
+
     return 0
 
 
