@@ -263,6 +263,7 @@ def rmtree_error_handler(func, path, exc_info):
     If the error is for another reason it re-raises the error.
     
     Usage : ``shutil.rmtree(path, onerror=onerror)``
+    Credits: https://stackoverflow.com/questions/2656322/shutil-rmtree-fails-on-windows-with-access-is-denied
     """
     import stat
     # Is the error an access error?
