@@ -9,6 +9,7 @@ import hashlib
 import json
 import shutil
 import sys
+from typing import Optional, Union, List
 
 BUILD_CONFIG = "build.json"
 CMAKE = "CMakeLists.txt"
@@ -19,11 +20,11 @@ SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
 class Project():
     def __init__(
-            self, name: str | None = None,
-            executable: str | None = None,
+            self, name: Optional[str] = None,
+            executable: Optional[str] = None,
             dir: str = ".",
-            root: "Project | None" = None,
-            binary_dir: str | None = None
+            root: "Optional[Project]" = None,
+            binary_dir: Optional[str] = None
     ) -> None:
         self.root = root # defines root/main project
         self.cmake_path: str = os.path.join(dir, CMAKE)
@@ -37,7 +38,7 @@ class Project():
         self.run_path: str
         self.info_msg: str
         self.executable: str
-        self.binary_dir: str | None = binary_dir
+        self.binary_dir: Optional[str] = binary_dir
 
         self.set_os_specific()
 
@@ -150,7 +151,7 @@ class Project():
 
         return subprojects
 
-    def get_executable_names(self, file_path: str) -> list[str]:
+    def get_executable_names(self, file_path: str) -> List[str]:
         """Get a list of defined the defined executable names from the given CMakeLists.txt"""
         with open(file_path, encoding="utf-8") as file:
             lines = file.readlines()
@@ -321,7 +322,7 @@ def escape_quotes(string: str) -> str:
     result = re.sub(r"'", r"\'", result)
     return result
 
-def get_quoted_string(strings: str | list[str], all=False) -> str:
+def get_quoted_string(strings: Union[str, List[str]], all=False) -> str:
     """
     Return quoted string with all quotes in the string escaped, from a list of strings.
     @all can be specified, to quote each string. Otherwise it will only quote the the strings 
