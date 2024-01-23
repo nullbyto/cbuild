@@ -17,7 +17,7 @@ CMAKE_CACHE = "CMakeCache.txt"
 SOURCE_FORMAT = "bash -c 'source {} ; {}'"
 
 class Project():
-    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: "Project" = None) -> None:
+    def __init__(self, name: str | None = None, executable: str | None = None, dir: str = ".", root: "Project" = None, binary_dir: str = None) -> None:
         self.root = root # defines root/main project
         self.cmake_path: str = os.path.join(dir, CMAKE)
         self.name: str = name or get_project_name(self.cmake_path)
@@ -30,6 +30,7 @@ class Project():
         self.run_path: str
         self.info_msg: str
         self.executable: str
+        self.binary_dir: str = binary_dir
 
         self.set_os_specific()
 
@@ -62,6 +63,8 @@ class Project():
         print("Name: ", self.name)
         print("Build directory: ", self.build_dir)
         print("Executables directory: ", self.executables_dir)
+        if self.binary_dir:
+            print("Copy executables (binaries) to: ", self.binary_dir)
         print("Run path: ", self.run_path)
         print("Executables: ", self.executables)
         if self.subprojects:
@@ -359,7 +362,7 @@ def main():
         return 1
 
     # Create Project object with specified executable --run argument, otherwise project name is used
-    project = Project(executable=args.executable, dir=args.path)
+    project = Project(executable=args.executable, dir=args.path, binary_dir=args.binary_dir)
 
     # Display project info
     if args.project:
