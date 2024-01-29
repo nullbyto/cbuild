@@ -35,7 +35,7 @@ class Project():
         self.build_dir: str
         self.executables_paths: dict[str, str]
         self.executables_dir: str
-        self.run_path: str
+        self.run_path: str = ""
         self.info_msg: str
         self.executable: str
         self.binary_dir: Optional[str] = binary_dir
@@ -63,7 +63,8 @@ class Project():
                 quit(1)
 
         self.set_exec_ext()
-        self.run_path = self.executables_paths[self.executable]
+        if self.executable in self.executables_paths:
+            self.run_path = self.executables_paths[self.executable]
 
     def display_project_info(self) -> None:
         """Print out relevant project information"""
