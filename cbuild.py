@@ -373,8 +373,10 @@ def main():
                         help="force run old binary if build failed")
     parser.add_argument("-d", "--delete", action="store_true",
                         help="delete build directory before building")
-    parser.add_argument("-cm", "--cmake-options", dest="cmake_options",
-                        help="pass cmake options with -cm=\"\"", nargs=1)
+    parser.add_argument("-go", "--gen-options", dest="gen_options",
+                        help="pass cmake option for generation with -go=\"\"", nargs=1)
+    parser.add_argument("-bo", "--build-options", dest="build_options",
+                        help="pass cmake options for building with -bo=\"\"", nargs=1)
     parser.add_argument("-p", "--project", action="store_true",
                         help="display project info")
     parser.add_argument("-i", "--ignore", action="store_true",
@@ -418,11 +420,16 @@ def main():
         other_args.pop(idx)
     
     # Get cmake options to pass to
-    if args.cmake_options:
-        cmake_options = args.cmake_options
-        cmake_options = cmake_options[0].split()
+    if args.gen_options:
+        gen_options = args.gen_options
+        gen_options = gen_options[0].split()
     else:
-        cmake_options = []
+        gen_options = []
+    if args.build_options:
+        build_options = args.build_options
+        build_options = build_options[0].split()
+    else:
+        build_options = []
 
     # To save if CMakeLists.txt is modified
     modified = False
@@ -473,11 +480,11 @@ def main():
         print(beautiy(project.info_msg))
         print(beautiy("Generating CMake cache ..."))
         subprocess.run(source_cmd.format(args.source, " ".join(
-            ["cmake", args.path, "-B", project.build_dir] + cmake_options)), shell=True)
+            ["cmake", args.path, "-B", project.build_dir] + gen_options)), shell=True)
 
     print(beautiy(f"Building project: {project_name} ..."))
     proc = subprocess.run(source_cmd.format(args.source, " ".join(
-        ["cmake", "--build", project.build_dir])), shell=True)
+        ["cmake", "--build", project.build_dir] + build_options)), shell=True)
     if proc.returncode != 0:
         print(beautiy("Build process failed!"), file=sys.stderr)
         # If there was an error and -f switch wasn't given, quit
