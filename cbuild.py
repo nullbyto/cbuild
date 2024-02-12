@@ -374,7 +374,7 @@ def main():
     parser.add_argument("-d", "--delete", action="store_true",
                         help="delete build directory before building")
     parser.add_argument("-go", "--gen-options", dest="gen_options",
-                        help="pass cmake option for generation with -go=\"\"", nargs=1)
+                        help="pass cmake options for generation with -go=\"\"", nargs=1)
     parser.add_argument("-bo", "--build-options", dest="build_options",
                         help="pass cmake options for building with -bo=\"\"", nargs=1)
     parser.add_argument("-p", "--project", action="store_true",
