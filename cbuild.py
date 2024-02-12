@@ -43,7 +43,7 @@ class Project():
         self.set_os_specific()
 
         # Assign executable path for each executable (and for each sub project)
-        exec_paths: dict = {exec: os.path.join(self.executables_dir, exec) for exec in self.executables}
+        exec_paths: dict[str, str] = {exec: os.path.join(self.executables_dir, exec) for exec in self.executables}
         for proj in self.subprojects.values():
             exec_paths.update({exec: os.path.join(proj.executables_dir, exec) for exec in proj.executables})
 
@@ -56,11 +56,7 @@ class Project():
         if executable == "default" or executable is None:
             self.executable = self.name
         else:
-            if executable in self.executables:
-                self.executable = executable
-            else:
-                print("[ERROR]: The specificed executable is not defined in CMakeLists.txt", file=sys.stderr)
-                quit(1)
+            self.executable = executable
 
         self.set_exec_ext()
         if self.executable in self.executables_paths:
@@ -196,6 +192,28 @@ class Project():
                     executables.append(name)
 
         return executables
+    
+    def check_valid_exec(self):
+        """Checks if the executable specified exists in the build files and add if its found, else return error msg"""
+        if self.executable not in self.executables_paths:
+            # Iterate over all subprojects and at last the root project
+            for proj in list(self.subprojects.values()):
+                for exec in proj.executables:
+                    if is_cmake_variable(exec):
+                        try_path = os.path.join(os.path.dirname(self.executables_paths[exec]), self.executable)
+                        if os.path.exists(try_path):
+                            self.executables_paths[self.executable] = try_path
+                            return
+
+            for exec in self.executables:
+                if is_cmake_variable(exec):
+                    try_path = os.path.join(os.path.dirname(self.executables_paths[exec]), self.executable)
+                    if os.path.exists(try_path):
+                        self.executables_paths[self.executable] = try_path
+                        return
+
+            print("[ERROR]: The specificed executable is not found in the build files", file=sys.stderr)
+            quit(1)
 
 
 def read_build_conf(file_path: str) -> dict:
@@ -373,6 +391,8 @@ def main():
     cmake_path = os.path.join(args.path, CMAKE)
     build_conf_path = os.path.join(args.path, BUILD_CONFIG)
 
+    print(beautiy("CBuild"))
+
     # Quit if CMakeLists.txt is missing
     if not check_cmakelists_exists(cmake_path):
         print("[ERROR]: CMakeLists.txt is missing!", file=sys.stderr)
@@ -477,6 +497,9 @@ def main():
             # Get original permissions of the file to write that to the copy
             orig_perms = os.stat(exec_path).st_mode
             os.chmod(dst, orig_perms)
+
+    # Check if the executable exists after building and add it if found
+    project.check_valid_exec()
 
     # Run project if switch was given
     if args.executable:
