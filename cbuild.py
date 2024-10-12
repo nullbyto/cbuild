@@ -517,14 +517,18 @@ def main():
         print(beautiy(f"Running {run_msg}{project_name}"))
 
         raw_other_args = get_quoted_string(other_args)
-        if args.executable == "default":
-            proc = subprocess.run(source_cmd.format(args.source, " ".join(
-                [project.run_path, raw_other_args])), shell=True)
-        else:
-            proc = subprocess.run(source_cmd.format(args.source, " ".join(
-                [project.executables_paths[args.executable], raw_other_args])), shell=True)
+        try:
+            if args.executable == "default":
+                proc = subprocess.run(source_cmd.format(args.source, " ".join(
+                    [project.run_path, raw_other_args])), shell=True)
+            else:
+                proc = subprocess.run(source_cmd.format(args.source, " ".join(
+                    [project.executables_paths[args.executable], raw_other_args])), shell=True)
 
-        return proc.returncode
+            return proc.returncode
+        except:
+            print(beautiy(f"{run_msg}{project_name} Stopped"))
+            return 1
 
     return 0
 
