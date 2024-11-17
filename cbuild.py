@@ -499,11 +499,14 @@ def main():
             # Create directories if needed
             os.makedirs(binary_path, exist_ok=True)
             dst = os.path.join(binary_path, os.path.basename(exec_path))
-            shutil.copyfile(exec_path, dst)
+            try:
+                shutil.copyfile(exec_path, dst)
 
-            # Get original permissions of the file to write that to the copy
-            orig_perms = os.stat(exec_path).st_mode
-            os.chmod(dst, orig_perms)
+                # Get original permissions of the file to write that to the copy
+                orig_perms = os.stat(exec_path).st_mode
+                os.chmod(dst, orig_perms)
+            except Exception as e:
+                print(f"Cannnot find: {exec_path}")
 
     # Check if the executable exists after building and add it if found
     project.check_valid_exec()
